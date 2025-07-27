@@ -166,22 +166,43 @@ app.get('/api/categories', (req, res) => {
 });
 
 // ✅ Booking Insert
-app.post('/api/bookings', (req, res) => {
-  const { name, phone, event_type, address, mahal_name, location, price, dates } = req.body;
-  const sql = `INSERT INTO bookings (name, phone, event_type, address, mahal_name, location, price, dates) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
-  db.query(sql, [name, phone, event_type, address, mahal_name, location, price, dates], (err) => {
-    if (err) return res.status(500).json({ message: 'Booking failed' });
-    res.status(200).json({ message: 'Booking successful' });
+app.get('/api/mahal/:id', (req, res) => {
+  const { id } = req.params;
+  db.query('SELECT * FROM banquet_halls WHERE id = ?', [id], (err, result) => {
+    if (err) return res.status(500).json({ error: err });
+    res.json(result[0]);
   });
 });
 
-// ✅ Single Hall by ID
-app.get('/api/banquet_halls/:id', (req, res) => {
-  const { id } = req.params;
-  db.query('SELECT * FROM banquet_halls WHERE id = ?', [id], (err, result) => {
-    if (err || result.length === 0) return res.status(404).json({ message: 'Hall not found' });
-    res.json(result[0]);
-  });
+// Get Booked Dates
+app.get('/api/bookings', (req, res) => {
+  const { mahalId, month, year } = req.query;
+  const start = `${year}-${month.padStart(2, '0')}-01`;
+  const end = `${year}-${month.padStart(2, '0')}-31`;
+
+  db.query(
+    `SELECT booked_date FROM bookings WHERE mahal_id = ? AND booked_date BETWEEN ? AND ?`,
+    [mahalId, start, end],
+    (err, result) => {
+      if (err) return res.status(500).json({ error: err });
+      res.json(result.map(r => r.booked_date));
+    }
+  );
+});
+
+// Post Booking
+app.post('/api/bookings', (req, res) => {
+  const { mahalId, userId, dates } = req.body;
+  const insertValues = dates.map(date => [userId, mahalId, date]);
+
+  db.query(
+    'INSERT INTO bookings (user_id, mahal_id, booked_date) VALUES ?',
+    [insertValues],
+    (err, result) => {
+      if (err) return res.status(500).json({ error: err });
+      res.json({ success: true, message: 'Booking confirmed' });
+    }
+  );
 });
 
 // ✅ Start Server
