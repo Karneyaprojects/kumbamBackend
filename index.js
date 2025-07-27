@@ -44,8 +44,8 @@ const transporter = nodemailer.createTransport({
 });
 
 // ✅ Routes
-const availabilityRoute = require('./routes/availablity');
-app.use('/api/availability', availabilityRoute);
+// const availabilityRoute = require('./routes/availablity');
+// app.use('/api/availability', availabilityRoute);
 
 // ✅ User Signup
 app.post('/api/signup', async (req, res) => {
