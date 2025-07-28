@@ -210,30 +210,62 @@
 app.post('/api/book-now', (req, res) => {
   const { hallId, name, phone, eventType, address, dates, totalPrice } = req.body;
 
-  const allowedTypes = ['Wedding', 'Ear Piercing', 'Baby Showering', 'Corporate Meeting'];
-
-  if (!hallId || !name || !phone || !eventType || !address || !dates) {
-    return res.status(400).json({ error: 'Missing required fields.' });
+  // ✅ 1. Basic field validation
+  if (!hallId || !name || !phone || !eventType || !address || !dates || !totalPrice) {
+    return res.status(400).json({ success: false, message: 'Please fill all fields.' });
   }
 
-  if (!allowedTypes.includes(eventType)) {
-    return res.status(400).json({ error: 'Invalid event type.' });
+  // ✅ 2. Phone number format check (10 digits)
+  const phoneRegex = /^[6-9]\d{9}$/;
+  if (!phoneRegex.test(phone)) {
+    return res.status(400).json({ success: false, message: 'Invalid phone number.' });
   }
 
-  const query = `
-    INSERT INTO bookings (hall_id, name, phone, event_type, address, booking_dates, total_price)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+  // ✅ 3. Prevent duplicate bookings on same hall & date(s)
+  const dateList = dates.split(',').map(d => d.trim());
+
+  const checkQuery = `
+    SELECT * FROM bookings 
+    WHERE hall_id = ? AND booking_dates IN (${dateList.map(() => '?').join(',')})
   `;
 
-  db.query(query, [hallId, name, phone, eventType, address, dates, totalPrice], (err, result) => {
-    if (err) {
-      console.error('Booking Error:', err);
-      return res.status(500).json({ error: 'Failed to save booking.' });
+  db.query(checkQuery, [hallId, ...dateList], (checkErr, existing) => {
+    if (checkErr) {
+      console.error('❌ Duplicate Check Error:', checkErr);
+      return res.status(500).json({ success: false, message: 'Server error checking existing bookings.' });
     }
-    res.status(200).json({ message: 'Booking successful', bookingId: result.insertId });
+
+    if (existing.length > 0) {
+      return res.status(409).json({ success: false, message: 'Selected date(s) already booked.' });
+    }
+
+    // ✅ 4. Insert into bookings table
+    const insertQuery = `
+      INSERT INTO bookings (hall_id, name, phone, event_type, address, booking_dates, total_price)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `;
+    db.query(insertQuery, [hallId, name, phone, eventType, address, dates, totalPrice], (insertErr, result) => {
+      if (insertErr) {
+        console.error('❌ Booking Error:', insertErr);
+        return res.status(500).json({ success: false, message: 'Failed to save booking.' });
+      }
+
+      // ✅ 5. Send Confirmation Email (optional)
+      transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: process.env.NOTIFY_EMAIL || 'youradmin@example.com', // admin email
+        subject: 'New Booking - Kumbam',
+        text: `New booking by ${name} on ${dates} for ${eventType}. Contact: ${phone}.`,
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Booking successful',
+        bookingId: result.insertId,
+      });
+    });
   });
 });
-
 
 
   app.get('/api/muhurtham-2025/:id', (req, res) => {
