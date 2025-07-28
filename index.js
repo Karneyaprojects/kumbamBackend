@@ -34,6 +34,31 @@ db.getConnection((err, connection) => {
   }
 });
 
+// Root route to test server
+app.get('/', (req, res) => {
+  res.send('✅ API is running...');
+});
+
+// Global error logging
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('💥 Unhandled Rejection:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('💥 Uncaught Exception:', err);
+});
+
+// Keep-alive ping every 5 minutes (Railway free tier)
+setInterval(() => {
+  console.log('⏳ Still running... (keep-alive ping)');
+}, 1000 * 60 * 5);
+
+// Start server
+app.listen(5000, '0.0.0.0', () => {
+  console.log('✅ Server running on port 5000');
+});
+
+
 // ✅ Nodemailer Setup
 const transporter = nodemailer.createTransport({
   service: 'gmail',
