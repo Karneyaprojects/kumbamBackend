@@ -388,7 +388,7 @@ app.post('/api/initiate-payment', async (req, res) => {
     merchantId: MERCHANT_ID,
     merchantTransactionId: transactionId,
     merchantUserId: MERCHANT_USER_ID,
-    amount: amount * 100, // in paise
+    amount: amount * 100,
     redirectUrl: `${CALLBACK_URL}?transactionId=${transactionId}&bookingId=${bookingId}`,
     redirectMode: 'POST',
     mobileNumber: phone,
@@ -414,15 +414,13 @@ app.post('/api/initiate-payment', async (req, res) => {
       }
     );
 
-    // Insert payment record into DB
     await db.promise().query(
       `INSERT INTO payments (transaction_id, booking_id, status, amount, method, email, phone) VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [transactionId, bookingId, 'PENDING', amount, 'UPI', email, phone]
     );
 
     const paymentUrl = response.data.data.instrumentResponse.redirectInfo.url;
-
-  res.json({ success: true, paymentUrl: response.data.data.instrumentResponse.redirectInfo.url });
+    res.json({ success: true, paymentUrl }); // ✅ Use consistent field name
 
   } catch (err) {
     console.error('❌ Payment Initiation Error:', err?.response?.data || err.message);
@@ -431,7 +429,7 @@ app.post('/api/initiate-payment', async (req, res) => {
 });
 
 // ✅ CHECK PAYMENT STATUS
-app.get('/api/check-payment-status/:transactionId', async (req, res) => {
+aapp.get('/api/check-payment-status/:transactionId', async (req, res) => {
   const { transactionId } = req.params;
 
   const xVerify = crypto
@@ -453,7 +451,6 @@ app.get('/api/check-payment-status/:transactionId', async (req, res) => {
 
     const status = response.data.data.transactionStatus;
 
-    // Update DB with latest status
     await db.promise().query(
       `UPDATE payments SET status = ? WHERE transaction_id = ?`,
       [status, transactionId]
@@ -465,6 +462,7 @@ app.get('/api/check-payment-status/:transactionId', async (req, res) => {
     res.status(500).json({ success: false, message: 'Failed to fetch payment status' });
   }
 });
+
 
 // ✅ MARK PAYMENT SUCCESSFUL (after callback)
 app.post('/api/payment-success', async (req, res) => {
