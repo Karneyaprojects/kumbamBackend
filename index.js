@@ -176,6 +176,7 @@ app.get('/api/mahal/:id', (req, res) => {
 
 // Get Booked Dates
 // GET all bookings for 2025 with Mahal name
+// GET bookings for 2025
 app.get('/api/bookings-2025', (req, res) => {
   const query = `
     SELECT 
@@ -192,8 +193,7 @@ app.get('/api/bookings-2025', (req, res) => {
       console.error('Error fetching bookings:', err);
       return res.status(500).json({ message: 'Server error' });
     }
-
-    res.json(results); // { booked_date, mahal_id, mahal_name }
+    res.json(results);
   });
 });
 
