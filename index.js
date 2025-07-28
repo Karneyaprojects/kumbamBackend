@@ -207,7 +207,7 @@
   //   );
   // });
   // ✅ Book Now Endpoint
-aapp.post('/api/book-now', (req, res) => {
+app.post('/api/book-now', (req, res) => {
   const { hallId, name, phone, email, eventType, address, dates, totalPrice } = req.body;
 
   // ✅ 1. Basic field validation
