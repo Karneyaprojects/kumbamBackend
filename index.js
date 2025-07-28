@@ -68,4 +68,5 @@ app.listen(PORT, '0.0.0.0', () => {
 });
 
 // ✅ Export DB for route use
-module.exports = index;
+module.exports = db;
+
