@@ -151,6 +151,33 @@
       });
     });
   });
+  app.post('/api/resend-email-otp', (req, res) => {
+  const { email } = req.body;
+
+  if (!email) return res.status(400).json({ success: false, message: 'Email required' });
+
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const expiresAt = new Date(Date.now() + 5 * 60000); // 5 minutes
+
+  db.query(
+    'INSERT INTO otp_verification (email, otp, expires_at) VALUES (?, ?, ?)',
+    [email, otp, expiresAt],
+    (err) => {
+      if (err) return res.status(500).json({ success: false, message: 'DB Error' });
+
+      transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: 'Resend OTP - KUMBAM',
+        text: `Your OTP is ${otp}`,
+      }, (err) => {
+        if (err) return res.status(500).json({ success: false, message: 'Failed to send OTP' });
+        res.json({ success: true, message: 'OTP sent successfully' });
+      });
+    }
+  );
+});
+
 
   // ✅ Banquet Endpoints
   app.get('/api/banquets', (req, res) => {
@@ -206,6 +233,47 @@
   //     }
   //   );
   // });
+
+//   app.post('/api/initiate-payment', (req, res) => {
+//   const { hallId, hallName, amount, selectedDates } = req.body;
+
+//   if (!hallId || !amount || !hallName || !selectedDates) {
+//     return res.status(400).json({ success: false, message: 'Missing required fields.' });
+//   }
+
+//   const transactionId = `TXN_${Date.now()}`;
+//   const merchantId = process.env.PHONEPE_CLIENT_ID;
+//   const saltKey = process.env.PHONEPE_CLIENT_SECRET;
+//   const callbackUrl = process.env.CALLBACK_URL;
+
+//   const payload = {
+//     merchantId,
+//     merchantTransactionId: transactionId,
+//     merchantUserId: `USER_${hallId}`,
+//     amount: parseInt(amount * 100),
+//     redirectUrl: callbackUrl,
+//     redirectMode: 'POST',
+//     callbackUrl,
+//     paymentInstrument: {
+//       type: 'UPI_INTENT',
+//     },
+//   };
+
+//   const base64Payload = Buffer.from(JSON.stringify(payload)).toString('base64');
+//   const xVerify = crypto
+//     .createHash('sha256')
+//     .update(base64Payload + '/pg/v1/pay' + saltKey)
+//     .digest('hex') + '###1';
+
+//   const upiUrl = `upi://pay?pa=phonepe@upi&pn=${hallName}&tid=${transactionId}&tr=${transactionId}&am=${amount}&cu=INR`;
+
+//   res.json({
+//     success: true,
+//     paymentUrl: upiUrl,
+//     transactionId,
+//   });
+// });
+
   // ✅ Book Now Endpoint
 app.post('/api/book-now', (req, res) => {
   const { hallId, name, phone, email, eventType, address, dates, totalPrice } = req.body;
@@ -294,6 +362,127 @@ app.post('/api/book-now', (req, res) => {
       res.json({ valarpirai, theipirai });
     }
   );
+});
+
+
+const crypto = require('crypto');
+const axios = require('axios');
+
+const SALT_KEY = process.env.PHONEPE_SALT_KEY;
+const MERCHANT_ID = process.env.PHONEPE_MERCHANT_ID;
+const MERCHANT_USER_ID = process.env.PHONEPE_USER_ID;
+const CALLBACK_URL = process.env.PHONEPE_CALLBACK_URL;
+const BASE_URL = 'https://api-preprod.phonepe.com/apis/pg-sandbox';
+
+// ✅ Initiate Payment
+app.post('/api/initiate-payment', async (req, res) => {
+  const { amount, phone, email, hallId, bookingId } = req.body;
+  const transactionId = `TXN_${Date.now()}`;
+
+  const payload = {
+    merchantId: MERCHANT_ID,
+    merchantTransactionId: transactionId,
+    merchantUserId: MERCHANT_USER_ID,
+    amount: amount * 100, // amount in paise
+    redirectUrl: `${CALLBACK_URL}?transactionId=${transactionId}&bookingId=${bookingId}`,
+    redirectMode: 'POST',
+    mobileNumber: phone,
+    paymentInstrument: {
+      type: 'UPI_INTENT',
+    },
+  };
+
+  const base64Payload = Buffer.from(JSON.stringify(payload)).toString('base64');
+  const stringToSign = base64Payload + '/pg/v1/pay' + SALT_KEY;
+  const xVerify = crypto.createHash('sha256').update(stringToSign).digest('hex') + '###1';
+
+  try {
+    const response = await axios.post(
+      `${BASE_URL}/pg/v1/pay`,
+      { request: base64Payload },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-VERIFY': xVerify,
+          accept: 'application/json',
+        },
+      }
+    );
+
+    // Insert payment record in DB
+    await db.promise().query(
+      `INSERT INTO payments (transaction_id, booking_id, status, amount, method, email, phone) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [transactionId, bookingId, 'PENDING', amount, 'UPI', email, phone]
+    );
+
+    res.json({ success: true, url: response.data.data.instrumentResponse.redirectInfo.url });
+  } catch (err) {
+    console.error('❌ Payment Initiation Error:', err?.response?.data || err.message);
+    res.status(500).json({ success: false, message: 'Failed to initiate payment' });
+  }
+});
+
+// ✅ Check Payment Status
+const crypto = require('crypto');
+const axios = require('axios');
+app.get('/api/check-payment-status/:transactionId', async (req, res) => {
+  const { transactionId } = req.params;
+  const xVerify = crypto
+    .createHash('sha256')
+    .update(`/pg/v1/status/${MERCHANT_ID}/${transactionId}` + SALT_KEY)
+    .digest('hex') + '###1';
+
+  try {
+    const response = await axios.get(
+      `${BASE_URL}/pg/v1/status/${MERCHANT_ID}/${transactionId}`,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-VERIFY': xVerify,
+          'X-MERCHANT-ID': MERCHANT_ID,
+        },
+      }
+    );
+
+    const status = response.data.data.transactionStatus;
+
+    // Update payments table
+    await db.promise().query(
+      `UPDATE payments SET status = ? WHERE transaction_id = ?`,
+      [status, transactionId]
+    );
+
+    res.json({ success: true, status });
+  } catch (err) {
+    console.error('❌ Status Check Error:', err?.response?.data || err.message);
+    res.status(500).json({ success: false, message: 'Failed to fetch payment status' });
+  }
+});
+
+
+app.post('/api/payment-success', async (req, res) => {
+  const { transactionId, bookingId } = req.body;
+
+  if (!transactionId || !bookingId) {
+    return res.status(400).json({ success: false, message: 'Missing transaction or booking ID' });
+  }
+
+  try {
+    // ✅ Update payment status if not already done
+    const [result] = await db.promise().query(
+      `UPDATE payments SET status = 'COMPLETED' WHERE transaction_id = ? AND booking_id = ?`,
+      [transactionId, bookingId]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: 'Payment not found or already updated' });
+    }
+
+    res.json({ success: true, message: 'Payment marked as completed' });
+  } catch (error) {
+    console.error('❌ Payment Success Handler Error:', error);
+    res.status(500).json({ success: false, message: 'Internal Server Error' });
+  }
 });
 
 
