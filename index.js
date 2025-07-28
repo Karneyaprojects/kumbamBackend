@@ -11,8 +11,7 @@
   app.use(cors());
   app.use(express.json());
   app.use('/uploads', express.static('uploads'));
-  const muhurthamRoute = require('./routes/muhurtham'); // adjust path if needed
-app.use('/api', muhurthamRoute);
+
 
 
   // ✅ MySQL Connection Pool
@@ -207,6 +206,28 @@ app.use('/api', muhurthamRoute);
       }
     );
   });
+
+  app.get('/api/muhurtham-2025/:id', (req, res) => {
+  const { id } = req.params;
+
+  db.query(
+    'SELECT valarpirai_dates, theipirai_dates FROM muhurtham_dates_2025 WHERE mahal_id = ?',
+    [id],
+    (err, result) => {
+      if (err) return res.status(500).json({ error: err });
+
+      if (result.length === 0) {
+        return res.status(404).json({ message: 'No muhurtham dates found' });
+      }
+
+      const valarpirai = JSON.parse(result[0].valarpirai_dates);
+      const theipirai = JSON.parse(result[0].theipirai_dates);
+
+      res.json({ valarpirai, theipirai });
+    }
+  );
+});
+
 
   // ✅ Start Server
   app.listen(5000, '0.0.0.0', () => {
