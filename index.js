@@ -177,35 +177,35 @@
   });
 
   // Get Booked Dates
-  app.get('/api/bookings', (req, res) => {
-    const { mahalId, month, year } = req.query;
-    const start = `${year}-${month.padStart(2, '0')}-01`;
-    const end = `${year}-${month.padStart(2, '0')}-31`;
+  // app.get('/api/bookings', (req, res) => {
+  //   const { mahalId, month, year } = req.query;
+  //   const start = `${year}-${month.padStart(2, '0')}-01`;
+  //   const end = `${year}-${month.padStart(2, '0')}-31`;
 
-    db.query(
-      `SELECT booked_date FROM bookings WHERE mahal_id = ? AND booked_date BETWEEN ? AND ?`,
-      [mahalId, start, end],
-      (err, result) => {
-        if (err) return res.status(500).json({ error: err });
-        res.json(result.map(r => r.booked_date));
-      }
-    );
-  });
+  //   db.query(
+  //     `SELECT booked_date FROM bookings WHERE mahal_id = ? AND booked_date BETWEEN ? AND ?`,
+  //     [mahalId, start, end],
+  //     (err, result) => {
+  //       if (err) return res.status(500).json({ error: err });
+  //       res.json(result.map(r => r.booked_date));
+  //     }
+  //   );
+  // });
 
-  // Post Booking
-  app.post('/api/bookings', (req, res) => {
-    const { mahalId, userId, dates } = req.body;
-    const insertValues = dates.map(date => [userId, mahalId, date]);
+  // // Post Booking
+  // app.post('/api/bookings', (req, res) => {
+  //   const { mahalId, userId, dates } = req.body;
+  //   const insertValues = dates.map(date => [userId, mahalId, date]);
 
-    db.query(
-      'INSERT INTO bookings (user_id, mahal_id, booked_date) VALUES ?',
-      [insertValues],
-      (err, result) => {
-        if (err) return res.status(500).json({ error: err });
-        res.json({ success: true, message: 'Booking confirmed' });
-      }
-    );
-  });
+  //   db.query(
+  //     'INSERT INTO bookings (user_id, mahal_id, booked_date) VALUES ?',
+  //     [insertValues],
+  //     (err, result) => {
+  //       if (err) return res.status(500).json({ error: err });
+  //       res.json({ success: true, message: 'Booking confirmed' });
+  //     }
+  //   );
+  // });
   // ✅ Book Now Endpoint
 app.post('/api/book-now', (req, res) => {
   const { hallId, name, phone, eventType, address, dates, totalPrice } = req.body;
