@@ -176,13 +176,13 @@ app.get('/api/mahal/:id', (req, res) => {
 
 // Get Booked Dates
 // GET all bookings for 2025 with Mahal name
-// GET bookings for 2025
 app.get('/api/bookings-2025', (req, res) => {
   const query = `
     SELECT 
       b.booked_date, 
       b.mahal_id, 
-      m.name AS mahal_name
+      m.name AS mahal_name,
+      m.price
     FROM bookings b
     JOIN banquet_halls m ON b.mahal_id = m.id
     WHERE YEAR(b.booked_date) = 2025
@@ -196,6 +196,7 @@ app.get('/api/bookings-2025', (req, res) => {
     res.json(results);
   });
 });
+
 
 // ✅ Get Booked Dates for a Specific Mahal in 2025
 app.get('/api/bookings-2025/:mahalId', (req, res) => {
