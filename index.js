@@ -252,8 +252,8 @@ app.post('/api/book-now', (req, res) => {
 
       // ✅ 5. Send Confirmation Email (optional)
       transporter.sendMail({
-       from: process.env.EMAIL_USER,
-        to: email,
+        from: process.env.EMAIL_USER,
+        to: process.env.NOTIFY_EMAIL || 'youradmin@example.com', // admin email
         subject: 'New Booking - Kumbam',
         text: `New booking by ${name} on ${dates} for ${eventType}. Contact: ${phone}.`,
       });
