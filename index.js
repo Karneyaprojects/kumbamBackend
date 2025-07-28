@@ -422,7 +422,8 @@ app.post('/api/initiate-payment', async (req, res) => {
 
     const paymentUrl = response.data.data.instrumentResponse.redirectInfo.url;
 
-    res.json({ success: true, paymentUrl }); // ✅ Corrected key
+  res.json({ success: true, paymentUrl: response.data.data.instrumentResponse.redirectInfo.url });
+
   } catch (err) {
     console.error('❌ Payment Initiation Error:', err?.response?.data || err.message);
     res.status(500).json({ success: false, message: 'Failed to initiate payment' });
