@@ -175,35 +175,62 @@ app.get('/api/mahal/:id', (req, res) => {
 });
 
 // Get Booked Dates
-app.get('/api/bookings', (req, res) => {
-  const { mahalId, month, year } = req.query;
-  const start = `${year}-${month.padStart(2, '0')}-01`;
-  const end = `${year}-${month.padStart(2, '0')}-31`;
+// GET all bookings for 2025 with Mahal name
+app.get('/api/bookings-2025', (req, res) => {
+  const query = `
+    SELECT 
+      b.booked_date, 
+      b.mahal_id, 
+      m.name AS mahal_name
+    FROM bookings b
+    JOIN banquet_halls m ON b.mahal_id = m.id
+    WHERE YEAR(b.booked_date) = 2025
+  `;
 
-  db.query(
-    `SELECT booked_date FROM bookings WHERE mahal_id = ? AND booked_date BETWEEN ? AND ?`,
-    [mahalId, start, end],
-    (err, result) => {
-      if (err) return res.status(500).json({ error: err });
-      res.json(result.map(r => r.booked_date));
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error('Error fetching bookings:', err);
+      return res.status(500).json({ message: 'Server error' });
     }
-  );
+
+    res.json(results); // { booked_date, mahal_id, mahal_name }
+  });
 });
+
+// ✅ Get Booked Dates for a Specific Mahal in 2025
+app.get('/api/bookings-2025/:mahalId', (req, res) => {
+  const { mahalId } = req.params;
+  const query = `
+    SELECT booked_date
+    FROM bookings
+    WHERE YEAR(booked_date) = 2025 AND mahal_id = ?
+  `;
+  db.query(query, [mahalId], (err, results) => {
+    if (err) {
+      console.error('Error fetching bookings:', err);
+      return res.status(500).json({ message: 'Server error' });
+    }
+
+    const dates = results.map(r => r.booked_date);
+    res.json(dates);
+  });
+});
+
 
 // Post Booking
-app.post('/api/bookings', (req, res) => {
-  const { mahalId, userId, dates } = req.body;
-  const insertValues = dates.map(date => [userId, mahalId, date]);
+// app.post('/api/bookings', (req, res) => {
+//   const { mahalId, userId, dates } = req.body;
+//   const insertValues = dates.map(date => [userId, mahalId, date]);
 
-  db.query(
-    'INSERT INTO bookings (user_id, mahal_id, booked_date) VALUES ?',
-    [insertValues],
-    (err, result) => {
-      if (err) return res.status(500).json({ error: err });
-      res.json({ success: true, message: 'Booking confirmed' });
-    }
-  );
-});
+//   db.query(
+//     'INSERT INTO bookings (user_id, mahal_id, booked_date) VALUES ?',
+//     [insertValues],
+//     (err, result) => {
+//       if (err) return res.status(500).json({ error: err });
+//       res.json({ success: true, message: 'Booking confirmed' });
+//     }
+//   );
+// });
 
 // ✅ Start Server
 app.listen(5000, '0.0.0.0', () => {
