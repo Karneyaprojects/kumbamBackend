@@ -365,7 +365,8 @@ app.post('/api/book-now', (req, res) => {
 });
 
 
-
+const crypto = require('crypto');
+const axios = require('axios');
 
 const SALT_KEY = process.env.PHONEPE_SALT_KEY;
 const MERCHANT_ID = process.env.PHONEPE_MERCHANT_ID;
@@ -373,16 +374,21 @@ const MERCHANT_USER_ID = process.env.PHONEPE_USER_ID;
 const CALLBACK_URL = process.env.PHONEPE_CALLBACK_URL;
 const BASE_URL = 'https://api-preprod.phonepe.com/apis/pg-sandbox';
 
-// ✅ Initiate Payment
+// ✅ INITIATE PAYMENT
 app.post('/api/initiate-payment', async (req, res) => {
   const { amount, phone, email, hallId, bookingId } = req.body;
+
+  if (!amount || !phone || !email || !hallId || !bookingId) {
+    return res.status(400).json({ success: false, message: 'Missing required fields' });
+  }
+
   const transactionId = `TXN_${Date.now()}`;
 
   const payload = {
     merchantId: MERCHANT_ID,
     merchantTransactionId: transactionId,
     merchantUserId: MERCHANT_USER_ID,
-    amount: amount * 100, // amount in paise
+    amount: amount * 100, // in paise
     redirectUrl: `${CALLBACK_URL}?transactionId=${transactionId}&bookingId=${bookingId}`,
     redirectMode: 'POST',
     mobileNumber: phone,
@@ -408,24 +414,25 @@ app.post('/api/initiate-payment', async (req, res) => {
       }
     );
 
-    // Insert payment record in DB
+    // Insert payment record into DB
     await db.promise().query(
       `INSERT INTO payments (transaction_id, booking_id, status, amount, method, email, phone) VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [transactionId, bookingId, 'PENDING', amount, 'UPI', email, phone]
     );
 
-    res.json({ success: true, url: response.data.data.instrumentResponse.redirectInfo.url });
+    const paymentUrl = response.data.data.instrumentResponse.redirectInfo.url;
+
+    res.json({ success: true, paymentUrl }); // ✅ Corrected key
   } catch (err) {
     console.error('❌ Payment Initiation Error:', err?.response?.data || err.message);
     res.status(500).json({ success: false, message: 'Failed to initiate payment' });
   }
 });
 
-// ✅ Check Payment Status
-const crypto = require('crypto');
-const axios = require('axios');
+// ✅ CHECK PAYMENT STATUS
 app.get('/api/check-payment-status/:transactionId', async (req, res) => {
   const { transactionId } = req.params;
+
   const xVerify = crypto
     .createHash('sha256')
     .update(`/pg/v1/status/${MERCHANT_ID}/${transactionId}` + SALT_KEY)
@@ -445,7 +452,7 @@ app.get('/api/check-payment-status/:transactionId', async (req, res) => {
 
     const status = response.data.data.transactionStatus;
 
-    // Update payments table
+    // Update DB with latest status
     await db.promise().query(
       `UPDATE payments SET status = ? WHERE transaction_id = ?`,
       [status, transactionId]
@@ -458,7 +465,7 @@ app.get('/api/check-payment-status/:transactionId', async (req, res) => {
   }
 });
 
-
+// ✅ MARK PAYMENT SUCCESSFUL (after callback)
 app.post('/api/payment-success', async (req, res) => {
   const { transactionId, bookingId } = req.body;
 
@@ -467,7 +474,6 @@ app.post('/api/payment-success', async (req, res) => {
   }
 
   try {
-    // ✅ Update payment status if not already done
     const [result] = await db.promise().query(
       `UPDATE payments SET status = 'COMPLETED' WHERE transaction_id = ? AND booking_id = ?`,
       [transactionId, bookingId]
