@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../index'); // Make sure this path matches your structure
+const db = require('../index'); // Adjust if needed
 
 router.get('/muhurtham-2025/:id', (req, res) => {
   const { id } = req.params;

@@ -11,6 +11,9 @@
   app.use(cors());
   app.use(express.json());
   app.use('/uploads', express.static('uploads'));
+  const muhurthamRoute = require('./routes/muhurtham'); // adjust path if needed
+app.use('/api', muhurthamRoute);
+
 
   // ✅ MySQL Connection Pool
   const db = mysql.createPool({
