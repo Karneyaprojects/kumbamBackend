@@ -166,7 +166,7 @@
   });
 
   // ✅ Booking Insert
-  app.get('/api/banquets/:id', (req, res) => {
+  app.get('/banquets/:id', (req, res) => {
     const { id } = req.params;
     db.query('SELECT * FROM banquet_halls WHERE id = ?', [id], (err, result) => {
       if (err) return res.status(500).json({ error: err });
