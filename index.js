@@ -197,7 +197,6 @@ app.get('/api/bookings-2025', (req, res) => {
   });
 });
 
-
 // ✅ Get Booked Dates for a Specific Mahal in 2025
 app.get('/api/bookings-2025/:mahalId', (req, res) => {
   const { mahalId } = req.params;
