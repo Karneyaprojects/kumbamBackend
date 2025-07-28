@@ -414,22 +414,28 @@ app.post('/api/initiate-payment', async (req, res) => {
       }
     );
 
+    const redirectUrl = response?.data?.data?.instrumentResponse?.redirectInfo?.url;
+
+    if (!redirectUrl) {
+      console.error('❌ Missing redirect URL in PhonePe response:', response?.data);
+      return res.status(502).json({ success: false, message: 'Payment link not received from PhonePe' });
+    }
+
     await db.promise().query(
       `INSERT INTO payments (transaction_id, booking_id, status, amount, method, email, phone) VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [transactionId, bookingId, 'PENDING', amount, 'UPI', email, phone]
     );
 
-    const paymentUrl = response.data.data.instrumentResponse.redirectInfo.url;
-    res.json({ success: true, paymentUrl }); // ✅ Use consistent field name
+    res.json({ success: true, paymentUrl: redirectUrl });
 
   } catch (err) {
-    console.error('❌ Payment Initiation Error:', err?.response?.data || err.message);
+    console.error('❌ Payment Initiation Error:', JSON.stringify(err?.response?.data || err.message || err, null, 2));
     res.status(500).json({ success: false, message: 'Failed to initiate payment' });
   }
 });
 
 // ✅ CHECK PAYMENT STATUS
-aapp.get('/api/check-payment-status/:transactionId', async (req, res) => {
+app.get('/api/check-payment-status/:transactionId', async (req, res) => {
   const { transactionId } = req.params;
 
   const xVerify = crypto
