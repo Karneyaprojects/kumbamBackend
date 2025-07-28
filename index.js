@@ -207,11 +207,11 @@
   //   );
   // });
   // ✅ Book Now Endpoint
-app.post('/api/book-now', (req, res) => {
-  const { hallId, name, phone, eventType, address, dates, totalPrice } = req.body;
+aapp.post('/api/book-now', (req, res) => {
+  const { hallId, name, phone, email, eventType, address, dates, totalPrice } = req.body;
 
   // ✅ 1. Basic field validation
-  if (!hallId || !name || !phone || !eventType || !address || !dates || !totalPrice) {
+  if (!hallId || !name || !phone || !email || !eventType || !address || !dates || !totalPrice) {
     return res.status(400).json({ success: false, message: 'Please fill all fields.' });
   }
 
@@ -221,7 +221,13 @@ app.post('/api/book-now', (req, res) => {
     return res.status(400).json({ success: false, message: 'Invalid phone number.' });
   }
 
-  // ✅ 3. Prevent duplicate bookings on same hall & date(s)
+  // ✅ 3. Email format check
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return res.status(400).json({ success: false, message: 'Invalid email format.' });
+  }
+
+  // ✅ 4. Prevent duplicate bookings on same hall & date(s)
   const dateList = dates.split(',').map(d => d.trim());
 
   const checkQuery = `
@@ -239,23 +245,24 @@ app.post('/api/book-now', (req, res) => {
       return res.status(409).json({ success: false, message: 'Selected date(s) already booked.' });
     }
 
-    // ✅ 4. Insert into bookings table
+    // ✅ 5. Insert into bookings table
     const insertQuery = `
-      INSERT INTO bookings (hall_id, name, phone, event_type, address, booking_dates, total_price)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO bookings (hall_id, name, phone, email, event_type, address, booking_dates, total_price)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `;
-    db.query(insertQuery, [hallId, name, phone, eventType, address, dates, totalPrice], (insertErr, result) => {
+
+    db.query(insertQuery, [hallId, name, phone, email, eventType, address, dates, totalPrice], (insertErr, result) => {
       if (insertErr) {
         console.error('❌ Booking Error:', insertErr);
         return res.status(500).json({ success: false, message: 'Failed to save booking.' });
       }
 
-      // ✅ 5. Send Confirmation Email (optional)
+      // ✅ 6. Send confirmation email to admin (optional)
       transporter.sendMail({
         from: process.env.EMAIL_USER,
-        to: process.env.NOTIFY_EMAIL || 'youradmin@example.com', // admin email
+        to: process.env.NOTIFY_EMAIL || 'youradmin@example.com',
         subject: 'New Booking - Kumbam',
-        text: `New booking by ${name} on ${dates} for ${eventType}. Contact: ${phone}.`,
+        text: `New booking by ${name} (${email}) on ${dates} for ${eventType}. Contact: ${phone}.`,
       });
 
       res.status(200).json({
