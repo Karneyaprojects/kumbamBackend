@@ -49,8 +49,8 @@ const axios = require('axios');
   });
 
   // ✅ Routes
-  const availabilityRoute = require('./routes/muhurtham');
-  app.use('/', availabilityRoute);
+  // const availabilityRoute = require('./routes/muhurtham');
+  // app.use('/', availabilityRoute);
 
   // ✅ User Signup
   app.post('/api/signup', async (req, res) => {
@@ -347,40 +347,40 @@ app.post('/api/book-now', (req, res) => {
   });
 });
 
-// app.get('/api/muhurtham-2025/:id', (req, res) => {
-//   const { id } = req.params;
+app.get('/api/muhurtham-2025/:id', (req, res) => {
+  const { id } = req.params;
 
-//   db.query(
-//     'SELECT * FROM muhurtham_dates_2025 WHERE mahal_id = ?',
-//     [id],
-//     (err, result) => {
-//       if (err) return res.status(500).json({ error: err });
+  db.query(
+    'SELECT * FROM muhurtham_dates_2025 WHERE mahal_id = ?',
+    [id],
+    (err, result) => {
+      if (err) return res.status(500).json({ error: err });
 
-//       if (result.length === 0) {
-//         return res.status(404).json({ message: 'No muhurtham dates found' });
-//       }
+      if (result.length === 0) {
+        return res.status(404).json({ message: 'No muhurtham dates found' });
+      }
 
-//       const rawValarpirai = JSON.parse(result[0].valarpirai_dates);
-//       const rawTheipirai = JSON.parse(result[0].theipirai_dates);
+      const rawValarpirai = JSON.parse(result[0].valarpirai_dates);
+      const rawTheipirai = JSON.parse(result[0].theipirai_dates);
 
-//       const convertToFullDate = (dateStr) => {
-//         // Assume format is DD-MM or MM-DD
-//         const parts = dateStr.split('-');
-//         if (parts.length !== 2) return null;
+      const convertToFullDate = (dateStr) => {
+        // Assume format is DD-MM or MM-DD
+        const parts = dateStr.split('-');
+        if (parts.length !== 2) return null;
 
-//         const [day, month] = parts[0].length === 2 ? parts : parts.reverse();
+        const [day, month] = parts[0].length === 2 ? parts : parts.reverse();
 
-//         // Format to YYYY-MM-DD
-//         return `2025-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-//       };
+        // Format to YYYY-MM-DD
+        return `2025-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+      };
 
-//       const valarpirai = rawValarpirai.map(convertToFullDate).filter(Boolean);
-//       const theipirai = rawTheipirai.map(convertToFullDate).filter(Boolean);
+      const valarpirai = rawValarpirai.map(convertToFullDate).filter(Boolean);
+      const theipirai = rawTheipirai.map(convertToFullDate).filter(Boolean);
 
-//       res.json({ valarpirai, theipirai });
-//     }
-//   );
-// });
+      res.json({ valarpirai, theipirai });
+    }
+  );
+});
 
 
 const SALT_KEY = process.env.PHONEPE_SALT_KEY;
