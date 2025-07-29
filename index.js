@@ -400,11 +400,11 @@ app.post('/api/initiate-payment', async (req, res) => {
   const transactionId = `TXN_${Date.now()}`;
 
   const payload = {
-    merchantId: MERCHANT_ID,
+    merchantId: process.env.PHONEPE_MERCHANT_ID,
     merchantTransactionId: transactionId,
-    merchantUserId: MERCHANT_USER_ID,
+    merchantUserId: process.env.PHONEPE_USER_ID,
     amount: amount * 100,
-    redirectUrl: `${CALLBACK_URL}?transactionId=${transactionId}&bookingId=${bookingId}`,
+    redirectUrl: `${process.env.PHONEPE_CALLBACK_URL}?transactionId=${transactionId}&bookingId=${bookingId}`,
     redirectMode: 'POST',
     mobileNumber: phone,
     paymentInstrument: {
@@ -413,7 +413,7 @@ app.post('/api/initiate-payment', async (req, res) => {
   };
 
   const base64Payload = Buffer.from(JSON.stringify(payload)).toString('base64');
-  const stringToSign = base64Payload + '/pg/v1/pay' + SALT_KEY;
+  const stringToSign = base64Payload + '/pg/v1/pay' + process.env.PHONEPE_SALT_KEY;
   const xVerify = crypto.createHash('sha256').update(stringToSign).digest('hex') + '###1';
 
   try {
@@ -429,6 +429,11 @@ app.post('/api/initiate-payment', async (req, res) => {
       }
     );
 
+    if (response?.data?.success === false) {
+      console.error('❌ PhonePe API Error:', response.data);
+      return res.status(502).json({ success: false, message: response.data.message || 'PhonePe API Error' });
+    }
+
     const redirectUrl = response?.data?.data?.instrumentResponse?.redirectInfo?.url;
 
     if (!redirectUrl) {
@@ -436,11 +441,13 @@ app.post('/api/initiate-payment', async (req, res) => {
       return res.status(502).json({ success: false, message: 'Payment link not received from PhonePe' });
     }
 
+    // ✅ Insert into DB
     await db.promise().query(
       `INSERT INTO payments (transaction_id, booking_id, status, amount, method, email, phone) VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [transactionId, bookingId, 'PENDING', amount, 'UPI', email, phone]
     );
 
+    console.log(`✅ Payment initiated. Transaction ID: ${transactionId}`);
     res.json({ success: true, paymentUrl: redirectUrl });
 
   } catch (err) {
@@ -448,6 +455,7 @@ app.post('/api/initiate-payment', async (req, res) => {
     res.status(500).json({ success: false, message: 'Failed to initiate payment' });
   }
 });
+
 
 // ✅ CHECK PAYMENT STATUS
 app.get('/api/check-payment-status/:transactionId', async (req, res) => {
