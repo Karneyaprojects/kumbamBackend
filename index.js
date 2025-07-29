@@ -390,63 +390,63 @@ const CALLBACK_URL = process.env.PHONEPE_CALLBACK_URL;
 // const BASE_URL = 'https://api-preprod.phonepe.com/apis/pg-sandbox/';
 
 // ✅ INITIATE PAYMENT
-// app.use('/api/initiate-payment', async (req, res) => {
-//   const { amount, phone, email, hallId, bookingId } = req.body;
+app.use('/api/initiate-payment', async (req, res) => {
+  const { amount, phone, email, hallId, bookingId } = req.body;
 
-//   if (!amount || !phone || !email || !hallId || !bookingId) {
-//     return res.status(400).json({ success: false, message: 'Missing required fields' });
-//   }
+  if (!amount || !phone || !email || !hallId || !bookingId) {
+    return res.status(400).json({ success: false, message: 'Missing required fields' });
+  }
 
-//   const transactionId = `TXN_${Date.now()}`;
+  const transactionId = `TXN_${Date.now()}`;
 
-//   const payload = {
-//     merchantId: process.env.PHONEPE_MERCHANT_ID,
-//     merchantTransactionId: transactionId,
-//     merchantUserId: process.env.PHONEPE_USER_ID,
-//     amount: amount * 100,
-//     redirectUrl: `${process.env.PHONEPE_CALLBACK_URL}?transactionId=${transactionId}&bookingId=${bookingId}`,
-//     redirectMode: 'POST',
-//     mobileNumber: phone,
-//     paymentInstrument: {
-//       type: 'UPI_INTENT',
-//     },
-//   };
+  const payload = {
+    merchantId: process.env.PHONEPE_MERCHANT_ID,
+    merchantTransactionId: transactionId,
+    merchantUserId: process.env.PHONEPE_USER_ID,
+    amount: amount * 100,
+    redirectUrl: `${process.env.PHONEPE_CALLBACK_URL}?transactionId=${transactionId}&bookingId=${bookingId}`,
+    redirectMode: 'POST',
+    mobileNumber: phone,
+    paymentInstrument: {
+      type: 'UPI_INTENT',
+    },
+  };
 
-//   const base64Payload = Buffer.from(JSON.stringify(payload)).toString('base64');
-//   const stringToSign = base64Payload + '/pg/v1/pay' + process.env.PHONEPE_SALT_KEY;
-//   const xVerify = crypto.createHash('sha256').update(stringToSign).digest('hex') + `###${process.env.PHONEPE_SALT_INDEX}`;
+  const base64Payload = Buffer.from(JSON.stringify(payload)).toString('base64');
+  const stringToSign = base64Payload + '/pg/v1/pay' + process.env.PHONEPE_SALT_KEY;
+  const xVerify = crypto.createHash('sha256').update(stringToSign).digest('hex') + `###${process.env.PHONEPE_SALT_INDEX}`;
 
-//   try {
-//     const response = await axios.post(
-//       `https://api-preprod.phonepe.com/apis/pg-sandbox/pg/v1/pay`,
-//       { request: base64Payload },
-//       {
-//         headers: {
-//           'Content-Type': 'application/json',
-//           'X-VERIFY': xVerify,
-//           accept: 'application/json',
-//         },
-//       }
-//     );
+  try {
+    const response = await axios.post(
+      `https://api-preprod.phonepe.com/apis/pg-sandbox/pg/v1/pay`,
+      { request: base64Payload },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-VERIFY': xVerify,
+          accept: 'application/json',
+        },
+      }
+    );
 
-//     const redirectUrl = response?.data?.data?.instrumentResponse?.redirectInfo?.url;
+    const redirectUrl = response?.data?.data?.instrumentResponse?.redirectInfo?.url;
 
-//     if (!redirectUrl) {
-//       return res.status(502).json({ success: false, message: 'Payment link not received from PhonePe' });
-//     }
+    if (!redirectUrl) {
+      return res.status(502).json({ success: false, message: 'Payment link not received from PhonePe' });
+    }
 
-//     await db.promise().query(
-//       `INSERT INTO payments (transaction_id, booking_id, status, amount, method, email, phone) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-//       [transactionId, bookingId, 'PENDING', amount, 'UPI', email, phone]
-//     );
+    await db.promise().query(
+      `INSERT INTO payments (transaction_id, booking_id, status, amount, method, email, phone) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [transactionId, bookingId, 'PENDING', amount, 'UPI', email, phone]
+    );
 
-//     res.json({ success: true, paymentUrl: redirectUrl });
+    res.json({ success: true, paymentUrl: redirectUrl });
 
-//   } catch (err) {
-//     console.error('❌ Payment Error:', err?.response?.data || err.message);
-//     res.status(500).json({ success: false, message: 'Failed to initiate payment' });
-//   }
-// });
+  } catch (err) {
+    console.error('❌ Payment Error:', err?.response?.data || err.message);
+    res.status(500).json({ success: false, message: 'Failed to initiate payment' });
+  }
+});
 
 
 
