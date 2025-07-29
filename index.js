@@ -387,7 +387,7 @@ const SALT_KEY = process.env.PHONEPE_SALT_KEY;
 const MERCHANT_ID = process.env.PHONEPE_MERCHANT_ID;
 const MERCHANT_USER_ID = process.env.PHONEPE_USER_ID;
 const CALLBACK_URL = process.env.PHONEPE_CALLBACK_URL;
-const BASE_URL = 'https://api-preprod.phonepe.com/apis/pg-sandbox/';
+// const BASE_URL = 'https://api-preprod.phonepe.com/apis/pg-sandbox/';
 
 // ✅ INITIATE PAYMENT
 app.post('/api/initiate-payment', async (req, res) => {
@@ -418,7 +418,7 @@ app.post('/api/initiate-payment', async (req, res) => {
 
   try {
     const response = await axios.post(
-      `${BASE_URL}/pg/v1/pay`,
+      `https://api-preprod.phonepe.com/apis/pg-sandbox/pg/v1/pay`,
       { request: base64Payload },
       {
         headers: {
