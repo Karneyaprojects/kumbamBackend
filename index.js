@@ -13,6 +13,9 @@
   app.use('/uploads', express.static('uploads'));
 
 
+  const crypto = require('crypto');
+const axios = require('axios');
+
 
   // ✅ MySQL Connection Pool
   const db = mysql.createPool({
@@ -151,6 +154,7 @@
       });
     });
   });
+  // Resend-otp:
   app.post('/api/resend-email-otp', (req, res) => {
   const { email } = req.body;
 
@@ -187,6 +191,7 @@
     });
   });
 
+  // Categories
   app.get('/api/categories', (req, res) => {
     db.query('SELECT DISTINCT category FROM banquet_halls', (err, results) => {
       if (err) return res.status(500).send(err);
@@ -342,12 +347,11 @@ app.post('/api/book-now', (req, res) => {
   });
 });
 
-
-  app.get('/api/muhurtham-2025/:id', (req, res) => {
+app.get('/api/muhurtham-2025/:id', (req, res) => {
   const { id } = req.params;
 
   db.query(
-    'SELECT valarpirai_dates, theipirai_dates FROM muhurtham_dates_2025 WHERE mahal_id = ?',
+    'SELECT * FROM muhurtham_dates_2025 WHERE mahal_id = ?',
     [id],
     (err, result) => {
       if (err) return res.status(500).json({ error: err });
@@ -356,8 +360,22 @@ app.post('/api/book-now', (req, res) => {
         return res.status(404).json({ message: 'No muhurtham dates found' });
       }
 
-      const valarpirai = JSON.parse(result[0].valarpirai_dates);
-      const theipirai = JSON.parse(result[0].theipirai_dates);
+      const rawValarpirai = JSON.parse(result[0].valarpirai_dates);
+      const rawTheipirai = JSON.parse(result[0].theipirai_dates);
+
+      const convertToFullDate = (dateStr) => {
+        // Assume format is DD-MM or MM-DD
+        const parts = dateStr.split('-');
+        if (parts.length !== 2) return null;
+
+        const [day, month] = parts[0].length === 2 ? parts : parts.reverse();
+
+        // Format to YYYY-MM-DD
+        return `2025-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+      };
+
+      const valarpirai = rawValarpirai.map(convertToFullDate).filter(Boolean);
+      const theipirai = rawTheipirai.map(convertToFullDate).filter(Boolean);
 
       res.json({ valarpirai, theipirai });
     }
@@ -365,14 +383,11 @@ app.post('/api/book-now', (req, res) => {
 });
 
 
-const crypto = require('crypto');
-const axios = require('axios');
-
 const SALT_KEY = process.env.PHONEPE_SALT_KEY;
 const MERCHANT_ID = process.env.PHONEPE_MERCHANT_ID;
 const MERCHANT_USER_ID = process.env.PHONEPE_USER_ID;
 const CALLBACK_URL = process.env.PHONEPE_CALLBACK_URL;
-const BASE_URL = 'https://api-preprod.phonepe.com/apis/pg-sandbox';
+const BASE_URL = 'https://api-preprod.phonepe.com/apis/pg-sandbox/';
 
 // ✅ INITIATE PAYMENT
 app.post('/api/initiate-payment', async (req, res) => {
