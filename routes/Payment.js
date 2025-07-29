@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const axios = require('axios');
 const crypto = require('crypto');
+const db = require('../index');
 
 
 router.get('/payment-status/:transactionId', async (req, res) => {
