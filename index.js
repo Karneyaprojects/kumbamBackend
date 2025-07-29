@@ -49,8 +49,8 @@ const axios = require('axios');
   });
 
   // ✅ Routes
-  // const availabilityRoute = require('./routes/muhurtham');
-  // app.use('/', availabilityRoute);
+  // const paymentRoute = require('./routes/Payment');
+  // app.use('/api', paymentRoute);
 
   // ✅ User Signup
   app.post('/api/signup', async (req, res) => {
@@ -390,7 +390,7 @@ const CALLBACK_URL = process.env.PHONEPE_CALLBACK_URL;
 // const BASE_URL = 'https://api-preprod.phonepe.com/apis/pg-sandbox/';
 
 // ✅ INITIATE PAYMENT
-app.post('/api/initiate-payment', async (req, res) => {
+app.use('/api/initiate-payment', async (req, res) => {
   const { amount, phone, email, hallId, bookingId } = req.body;
 
   if (!amount || !phone || !email || !hallId || !bookingId) {
@@ -414,7 +414,7 @@ app.post('/api/initiate-payment', async (req, res) => {
 
   const base64Payload = Buffer.from(JSON.stringify(payload)).toString('base64');
   const stringToSign = base64Payload + '/pg/v1/pay' + process.env.PHONEPE_SALT_KEY;
-  const xVerify = crypto.createHash('sha256').update(stringToSign).digest('hex') + '###1';
+  const xVerify = crypto.createHash('sha256').update(stringToSign).digest('hex') + `###${process.env.PHONEPE_SALT_INDEX}`;
 
   try {
     const response = await axios.post(
@@ -429,32 +429,25 @@ app.post('/api/initiate-payment', async (req, res) => {
       }
     );
 
-    if (response?.data?.success === false) {
-      console.error('❌ PhonePe API Error:', response.data);
-      return res.status(502).json({ success: false, message: response.data.message || 'PhonePe API Error' });
-    }
-
     const redirectUrl = response?.data?.data?.instrumentResponse?.redirectInfo?.url;
 
     if (!redirectUrl) {
-      console.error('❌ Missing redirect URL in PhonePe response:', response?.data);
       return res.status(502).json({ success: false, message: 'Payment link not received from PhonePe' });
     }
 
-    // ✅ Insert into DB
     await db.promise().query(
       `INSERT INTO payments (transaction_id, booking_id, status, amount, method, email, phone) VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [transactionId, bookingId, 'PENDING', amount, 'UPI', email, phone]
     );
 
-    console.log(`✅ Payment initiated. Transaction ID: ${transactionId}`);
     res.json({ success: true, paymentUrl: redirectUrl });
 
   } catch (err) {
-    console.error('❌ Payment Initiation Error:', JSON.stringify(err?.response?.data || err.message || err, null, 2));
+    console.error('❌ Payment Error:', err?.response?.data || err.message);
     res.status(500).json({ success: false, message: 'Failed to initiate payment' });
   }
 });
+
 
 
 // ✅ CHECK PAYMENT STATUS
