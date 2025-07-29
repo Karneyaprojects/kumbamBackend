@@ -49,8 +49,8 @@ const axios = require('axios');
   });
 
   // ✅ Routes
-  const availabilityRoute = require('./routes/availablity');
-  app.use('/api/availability', availabilityRoute);
+  const availabilityRoute = require('./routes/muhurtham');
+  app.use('/api', availabilityRoute);
 
   // ✅ User Signup
   app.post('/api/signup', async (req, res) => {
