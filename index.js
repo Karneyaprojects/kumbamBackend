@@ -280,65 +280,52 @@ const axios = require('axios');
 // });
 
   // ✅ Book Now Endpoint
-app.post('/api/book-now', (req, res) => {
+app.post('/api/book-now', async (req, res) => {
   const { hallId, name, phone, email, eventType, address, dates, totalPrice } = req.body;
 
-  // ✅ 1. Basic field validation
   if (!hallId || !name || !phone || !email || !eventType || !address || !dates || !totalPrice) {
     return res.status(400).json({ success: false, message: 'Please fill all fields.' });
   }
 
-  // ✅ 2. Phone number format check (10 digits)
   const phoneRegex = /^[6-9]\d{9}$/;
   if (!phoneRegex.test(phone)) {
     return res.status(400).json({ success: false, message: 'Invalid phone number.' });
   }
 
-  // ✅ 3. Email format check
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
     return res.status(400).json({ success: false, message: 'Invalid email format.' });
   }
 
-  // ✅ 4. Prevent duplicate bookings on same hall & date(s)
   const dateList = dates.split(',').map(d => d.trim());
-
   const checkQuery = `
     SELECT * FROM bookings 
     WHERE hall_id = ? AND booking_dates IN (${dateList.map(() => '?').join(',')})
   `;
 
-  db.query(checkQuery, [hallId, ...dateList], (checkErr, existing) => {
-    if (checkErr) {
-      console.error('❌ Duplicate Check Error:', checkErr);
-      return res.status(500).json({ success: false, message: 'Server error checking existing bookings.' });
-    }
-
+  db.query(checkQuery, [hallId, ...dateList], async (checkErr, existing) => {
+    if (checkErr) return res.status(500).json({ success: false, message: 'Server error checking existing bookings.' });
     if (existing.length > 0) {
       return res.status(409).json({ success: false, message: 'Selected date(s) already booked.' });
     }
 
-    // ✅ 5. Insert into bookings table
     const insertQuery = `
       INSERT INTO bookings (hall_id, name, phone, email, event_type, address, booking_dates, total_price)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
-    db.query(insertQuery, [hallId, name, phone, email, eventType, address, dates, totalPrice], (insertErr, result) => {
-      if (insertErr) {
-        console.error('❌ Booking Error:', insertErr);
-        return res.status(500).json({ success: false, message: 'Failed to save booking.' });
-      }
+    db.query(insertQuery, [hallId, name, phone, email, eventType, address, dates, totalPrice], async (insertErr, result) => {
+      if (insertErr) return res.status(500).json({ success: false, message: 'Failed to save booking.' });
 
-      // ✅ 6. Send confirmation email to admin (optional)
+      // ✅ Send confirmation email to user
       transporter.sendMail({
         from: process.env.EMAIL_USER,
-        to: process.env.NOTIFY_EMAIL || 'youradmin@example.com',
-        subject: 'New Booking - Kumbam',
-        text: `New booking by ${name} (${email}) on ${dates} for ${eventType}. Contact: ${phone}.`,
+        to: email,
+        subject: 'Booking Confirmation - Kumbam',
+        html: `<h2>Hi ${name},</h2><p>Your booking for ${eventType} on ${dates} has been received.</p>`
       });
 
-      res.status(200).json({
+      return res.status(200).json({
         success: true,
         message: 'Booking successful',
         bookingId: result.insertId,
@@ -346,6 +333,71 @@ app.post('/api/book-now', (req, res) => {
     });
   });
 });
+
+// ✅ PhonePe Payment Gateway
+app.post('/api/initiate-payment', async (req, res) => {
+  const { amount, transactionId, redirectUrl } = req.body;
+
+  const payload = {
+    merchantId: process.env.PHONEPE_MERCHANT_ID,
+    merchantTransactionId: transactionId,
+    merchantUserId: 'USER_' + Date.now(),
+    amount: parseInt(amount) * 100,
+    redirectUrl,
+    redirectMode: 'POST',
+    callbackUrl: redirectUrl,
+  };
+
+  const payloadBase64 = Buffer.from(JSON.stringify(payload)).toString('base64');
+  const saltKey = process.env.PHONEPE_SALT_KEY;
+  const saltIndex = process.env.PHONEPE_SALT_INDEX;
+
+  const stringToHash = payloadBase64 + '/pg/v1/pay' + saltKey;
+  const sha256 = crypto.createHash('sha256').update(stringToHash).digest('hex');
+  const xVerify = `${sha256}###${saltIndex}`;
+
+  try {
+    const phonepeRes = await axios.post(
+      'https://api.phonepe.com/apis/hermes/pg/v1/pay',
+      { request: payloadBase64 },
+      { headers: { 'Content-Type': 'application/json', 'X-VERIFY': xVerify, 'X-MERCHANT-ID': process.env.PHONEPE_MERCHANT_ID } }
+    );
+
+    res.json(phonepeRes.data);
+  } catch (err) {
+    console.error('❌ Payment Error:', err);
+    res.status(500).json({ success: false, message: 'Payment initiation failed' });
+  }
+});
+
+// ✅ Filter available halls for a given date
+app.get('/api/available-halls', (req, res) => {
+  const { date } = req.query;
+  const query = `
+    SELECT * FROM halls WHERE id NOT IN (
+      SELECT hall_id FROM bookings WHERE FIND_IN_SET(?, booking_dates)
+    )
+  `;
+
+  db.query(query, [date], (err, result) => {
+    if (err) return res.status(500).json({ success: false, message: 'Error fetching halls' });
+    res.json({ success: true, availableHalls: result });
+  });
+});
+
+// GET all booked dates for a hall
+app.get('/api/booked-dates/:hallId', (req, res) => {
+  const { hallId } = req.params;
+  const query = 'SELECT booking_dates FROM bookings WHERE hall_id = ?';
+  db.query(query, [hallId], (err, results) => {
+    if (err) return res.status(500).json({ success: false, message: 'Failed to fetch booked dates' });
+
+    const booked = results.flatMap(r => r.booking_dates.split(',').map(d => d.trim()));
+    res.json({ success: true, bookedDates: [...new Set(booked)] });
+  });
+});
+
+
 
 app.get('/api/muhurtham-2025/:id', (req, res) => {
   const { id } = req.params;
@@ -363,19 +415,23 @@ app.get('/api/muhurtham-2025/:id', (req, res) => {
       const rawValarpirai = JSON.parse(result[0].valarpirai_dates);
       const rawTheipirai = JSON.parse(result[0].theipirai_dates);
 
-      const convertToFullDate = (dateStr) => {
-        // Assume format is DD-MM or MM-DD
-        const parts = dateStr.split('-');
-        if (parts.length !== 2) return null;
+      // Construct YYYY-MM-DD dates for each day across all 12 months of 2025
+      const generateFullDates = (daysArray) => {
+        const fullDates = [];
 
-        const [day, month] = parts[0].length === 2 ? parts : parts.reverse();
+        for (let month = 1; month <= 12; month++) {
+          daysArray.forEach(day => {
+            const dayStr = String(day).padStart(2, '0');
+            const monthStr = String(month).padStart(2, '0');
+            fullDates.push(`2025-${monthStr}-${dayStr}`);
+          });
+        }
 
-        // Format to YYYY-MM-DD
-        return `2025-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+        return fullDates;
       };
 
-      const valarpirai = rawValarpirai.map(convertToFullDate).filter(Boolean);
-      const theipirai = rawTheipirai.map(convertToFullDate).filter(Boolean);
+      const valarpirai = generateFullDates(rawValarpirai);
+      const theipirai = generateFullDates(rawTheipirai);
 
       res.json({ valarpirai, theipirai });
     }
