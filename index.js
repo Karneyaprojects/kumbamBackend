@@ -38,6 +38,10 @@ const axios = require('axios');
       connection.release();
     }
   });
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_SECRET,
+});
 
   // ✅ Nodemailer Setup
   const transporter = nodemailer.createTransport({
@@ -49,8 +53,8 @@ const axios = require('axios');
   });
 
   // ✅ Routes
-  const paymentRoute = require('./routes/Payment');
-  app.use('/api', paymentRoute);
+  // const paymentRoute = require('./routes/Payment');
+  // app.use('/api', paymentRoute);
 
   // ✅ User Signup
   app.post('/api/signup', async (req, res) => {
@@ -335,41 +339,41 @@ app.post('/api/book-now', async (req, res) => {
 });
 
 // ✅ PhonePe Payment Gateway
-app.post('/api/initiate-payment', async (req, res) => {
-  const { amount, transactionId, redirectUrl } = req.body;
-
-  const payload = {
-    merchantId: process.env.PHONEPE_MERCHANT_ID,
-    merchantTransactionId: transactionId,
-    merchantUserId: 'USER_' + Date.now(),
-    amount: parseInt(amount) * 100,
-    redirectUrl,
-    redirectMode: 'POST',
-    callbackUrl: redirectUrl,
-  };
-
-  const payloadBase64 = Buffer.from(JSON.stringify(payload)).toString('base64');
-  const saltKey = process.env.PHONEPE_SALT_KEY;
-  const saltIndex = process.env.PHONEPE_SALT_INDEX;
-
-  const stringToHash = payloadBase64 + '/pg/v1/pay' + saltKey;
-  const sha256 = crypto.createHash('sha256').update(stringToHash).digest('hex');
-  const xVerify = `${sha256}###${saltIndex}`;
-
+app.post('/initiate-payment', async (req, res) => {
   try {
-    const phonepeRes = await axios.post(
-      'https://api.phonepe.com/apis/hermes/pg/v1/pay',
-      { request: payloadBase64 },
-      { headers: { 'Content-Type': 'application/json', 'X-VERIFY': xVerify, 'X-MERCHANT-ID': process.env.PHONEPE_MERCHANT_ID } }
-    );
+    const { amount, email, phone, bookingId, hallId } = req.body;
 
-    res.json(phonepeRes.data);
+    const options = {
+      amount: amount * 100, // amount in paisa
+      currency: 'INR',
+      receipt: `receipt_${bookingId}`,
+    };
+
+    const order = await razorpay.orders.create(options);
+
+    // Save to DB
+    db.query(
+      `INSERT INTO payments (booking_id, hall_id, amount, email, phone, razorpay_order_id, status) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [bookingId, hallId, amount, email, phone, order.id, 'created'],
+      (err) => {
+        if (err) {
+          console.error('Database Error:', err);
+          return res.status(500).json({ success: false, message: 'Database error' });
+        }
+
+        res.json({
+          success: true,
+          orderId: order.id,
+          amount: order.amount,
+          key: process.env.RAZORPAY_KEY_ID,
+        });
+      }
+    );
   } catch (err) {
-    console.error('❌ Payment Error:', err);
-    res.status(500).json({ success: false, message: 'Payment initiation failed' });
+    console.error('Razorpay Error:', err);
+    res.status(500).json({ success: false, message: 'Razorpay error', error: err.message });
   }
 });
-
 // ✅ Filter available halls for a given date
 app.get('/api/available-halls', (req, res) => {
   const { date } = req.query;
