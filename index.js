@@ -363,19 +363,23 @@ app.get('/api/muhurtham-2025/:id', (req, res) => {
       const rawValarpirai = JSON.parse(result[0].valarpirai_dates);
       const rawTheipirai = JSON.parse(result[0].theipirai_dates);
 
-      const convertToFullDate = (dateStr) => {
-        // Assume format is DD-MM or MM-DD
-        const parts = dateStr.split('-');
-        if (parts.length !== 2) return null;
+      // Construct YYYY-MM-DD dates for each day across all 12 months of 2025
+      const generateFullDates = (daysArray) => {
+        const fullDates = [];
 
-        const [day, month] = parts[0].length === 2 ? parts : parts.reverse();
+        for (let month = 1; month <= 12; month++) {
+          daysArray.forEach(day => {
+            const dayStr = String(day).padStart(2, '0');
+            const monthStr = String(month).padStart(2, '0');
+            fullDates.push(`2025-${monthStr}-${dayStr}`);
+          });
+        }
 
-        // Format to YYYY-MM-DD
-        return `2025-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+        return fullDates;
       };
 
-      const valarpirai = rawValarpirai.map(convertToFullDate).filter(Boolean);
-      const theipirai = rawTheipirai.map(convertToFullDate).filter(Boolean);
+      const valarpirai = generateFullDates(rawValarpirai);
+      const theipirai = generateFullDates(rawTheipirai);
 
       res.json({ valarpirai, theipirai });
     }
