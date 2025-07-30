@@ -6,6 +6,8 @@
   const nodemailer = require('nodemailer');
   const dotenv = require('dotenv');
   dotenv.config();
+  const Razorpay = require('razorpay');
+
 
   const app = express();
   app.use(cors());
