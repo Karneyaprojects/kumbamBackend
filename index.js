@@ -345,25 +345,29 @@ app.post('/initiate-payment', async (req, res) => {
   try {
     const { amount, email, phone, bookingId, hallId } = req.body;
 
+    if (!amount || !email || !phone || !bookingId || !hallId) {
+      return res.status(400).json({ success: false, message: 'Missing required fields' });
+    }
+
     const options = {
-      amount: amount * 100, // amount in paisa
+      amount: amount * 100, // convert to paisa
       currency: 'INR',
       receipt: `receipt_${bookingId}`,
     };
 
     const order = await razorpay.orders.create(options);
 
-    // Save to DB
     db.query(
-      `INSERT INTO payments (booking_id, hall_id, amount, email, phone, razorpay_order_id, status) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO payments (booking_id, hall_id, amount, email, phone, razorpay_order_id, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [bookingId, hallId, amount, email, phone, order.id, 'created'],
-      (err) => {
+      (err, result) => {
         if (err) {
           console.error('Database Error:', err);
           return res.status(500).json({ success: false, message: 'Database error' });
         }
 
-        res.json({
+        return res.status(200).json({
           success: true,
           orderId: order.id,
           amount: order.amount,
@@ -373,9 +377,14 @@ app.post('/initiate-payment', async (req, res) => {
     );
   } catch (err) {
     console.error('Razorpay Error:', err);
-    res.status(500).json({ success: false, message: 'Razorpay error', error: err.message });
+    return res.status(500).json({
+      success: false,
+      message: 'Razorpay error',
+      error: err?.message || 'Unknown error',
+    });
   }
 });
+
 // ✅ Filter available halls for a given date
 app.get('/api/available-halls', (req, res) => {
   const { date } = req.query;
