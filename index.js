@@ -387,6 +387,39 @@ app.post('/initiate-payment', async (req, res) => {
 });
 
 
+app.post('/verify-payment', async (req, res) => {
+  const { razorpay_order_id, razorpay_payment_id, razorpay_signature, bookingId } = req.body;
+
+  if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !bookingId) {
+    return res.status(400).json({ success: false, message: 'Missing required fields' });
+  }
+
+  const key_secret = process.env.RAZORPAY_KEY_SECRET;
+  const generated_signature = crypto
+    .createHmac('sha256', key_secret)
+    .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+    .digest('hex');
+
+  if (generated_signature === razorpay_signature) {
+    // ✅ Signature matched - mark as paid
+    db.query(
+      `UPDATE payments SET status = ? WHERE razorpay_order_id = ?`,
+      ['paid', razorpay_order_id],
+      (err, result) => {
+        if (err) {
+          console.error('MySQL Error:', err);
+          return res.status(500).json({ success: false, message: 'Database update failed' });
+        }
+
+        return res.status(200).json({ success: true, message: 'Payment verified successfully' });
+      }
+    );
+  } else {
+    return res.status(400).json({ success: false, message: 'Invalid signature' });
+  }
+})
+
+
 // ✅ Filter available halls for a given date
 app.get('/api/available-halls', (req, res) => {
   const { date } = req.query;
