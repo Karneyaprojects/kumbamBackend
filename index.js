@@ -489,6 +489,31 @@ app.get('/api/muhurtham-2025/:id', (req, res) => {
 });
 
 
+// 📆 Get Booked Dates by Hall, Month & Year
+app.get('/api/booked-dates/:hallId/:month/:year', (req, res) => {
+  const { hallId, month, year } = req.params;
+
+  if (!hallId || !month || !year) {
+    return res.status(400).json({ success: false, message: 'Missing hallId, month, or year' });
+  }
+
+  const startDate = `${year}-${month.padStart(2, '0')}-01`;
+  const endDate = `${year}-${month.padStart(2, '0')}-31`;
+
+  const query = `
+    SELECT booking_dates FROM bookings 
+    WHERE hall_id = ? AND booking_dates BETWEEN ? AND ?
+  `;
+
+  db.query(query, [hallId, startDate, endDate], (err, results) => {
+    if (err) return res.status(500).json({ success: false, message: 'DB error' });
+
+    const booked = results.flatMap(row => row.booking_dates.split(',').map(d => d.trim()));
+    res.json({ success: true, bookedDates: [...new Set(booked)] });
+  });
+});
+
+
 app.use('/api/initiate-payment', async (req, res) => {
   const { amount, phone, email, hallId, bookingId } = req.body;
 
