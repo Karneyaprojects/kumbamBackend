@@ -214,6 +214,8 @@ const razorpay = new Razorpay({
     });
   });
 
+  
+
   // Get Booked Dates
   // app.get('/api/bookings', (req, res) => {
   //   const { mahalId, month, year } = req.query;
@@ -627,6 +629,34 @@ app.post('/api/payment-success', async (req, res) => {
   }
 });
 
+
+// Admin Login:
+
+
+app.post('/api/admin/login', async (req, res) => {
+  const { email, password } = req.body;
+
+  const [rows] = await db.promise().query(
+    'SELECT * FROM users WHERE email = ?',
+    [email]
+  );
+
+  if (rows.length === 0) {
+    return res.json({ success: false, message: 'User not found' });
+  }
+
+  const user = rows[0];
+
+  if (password === user.password) {
+    return res.json({
+      success: true,
+      token: 'mocked-token',
+      role: user.role
+    });
+  } else {
+    return res.json({ success: false, message: 'Incorrect password' });
+  }
+});
 
   // ✅ Start Server
   app.listen(5000, '0.0.0.0', () => {
