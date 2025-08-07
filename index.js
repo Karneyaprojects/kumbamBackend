@@ -660,7 +660,7 @@ app.post('/api/admin/login', async (req, res) => {
 
 // ✅ Inside index.js or server.js
 app.get('/api/admin/users', (req, res) => {
-  const query = 'SELECT id, name, email, phone FROM users';
+  const query = 'SELECT id,full_name,phone,email FROM users';
 
   db.query(query, (err, results) => {
     if (err) {
