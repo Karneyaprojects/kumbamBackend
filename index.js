@@ -658,17 +658,19 @@ app.post('/api/admin/login', async (req, res) => {
   });
 });
 
-app.post('/api/admin/users', async (req, res) => {
-  try {
-    const [users] = await db.promise().query(
-      'SELECT * FROM users where role="user"'
-    );
-    res.json({ success: true, users });
-  } catch (err) {
-    console.error('Error fetching users:', err);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
+// ✅ Inside index.js or server.js
+app.get('/api/admin/users', (req, res) => {
+  const query = 'SELECT id, name, email, phone FROM users';
+
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error('DB error:', err);
+      return res.status(500).json({ success: false, message: 'DB error' });
+    }
+    res.json({ success: true, users: results });
+  });
 });
+
 
   // ✅ Start Server
   app.listen(5000, '0.0.0.0', () => {
