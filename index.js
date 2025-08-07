@@ -667,29 +667,18 @@ app.get('/api/admin/users', (req, res) => {
   });
 });
 
-
-
 // Add user
 app.post('/api/admin/users', (req, res) => {
   const { name, email, phone } = req.body;
-
-  if (!name || !email || !phone) {
-    return res.status(400).json({ success: false, message: 'All fields are required' });
-  }
-
   db.query(
-    'INSERT INTO users (full_name, phone, email) VALUES (?, ?, ?)',
-    [name, phone, email],
+    'INSERT INTO users (full_name,phone,email) VALUES (?, ?, ?)',
+    [name, email, phone],
     (err, result) => {
-      if (err) {
-        console.error('DB Insert Error:', err);
-        return res.status(500).json({ success: false, message: 'Insert failed' });
-      }
+      if (err) return res.status(500).json({ success: false, message: 'Insert failed' });
       res.json({ success: true, id: result.insertId });
     }
   );
 });
-
 
 
 
