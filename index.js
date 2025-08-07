@@ -671,7 +671,7 @@ app.get('/api/admin/users', (req, res) => {
 app.post('/api/admin/users', (req, res) => {
   const { name, email, phone } = req.body;
   db.query(
-    'INSERT INTO users (name, email, phone) VALUES (?, ?, ?)',
+    'INSERT INTO users (full_name,phone,email) VALUES (?, ?, ?)',
     [name, email, phone],
     (err, result) => {
       if (err) return res.status(500).json({ success: false, message: 'Insert failed' });
