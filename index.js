@@ -637,27 +637,26 @@ app.post('/api/admin/login', async (req, res) => {
   const { email, password } = req.body;
 
   const [rows] = await db.promise().query(
-    'SELECT * FROM users WHERE email = ?',
+    'SELECT * FROM users WHERE email = ? AND role = "admin"',
     [email]
   );
 
   if (rows.length === 0) {
-    return res.json({ success: false, message: 'User not found' });
+    return res.json({ success: false, message: 'Admin user not found' });
   }
 
   const user = rows[0];
 
-  if (password === user.password) {
-    return res.json({
-      success: true,
-      token: 'mocked-token',
-      role: user.role
-    });
-  } else {
-    return res.json({ success: false, message: 'Incorrect password' });
-  }
-});
+  // If you're using bcrypt (recommended):
+  const isMatch = await bcrypt.compare(password, user.password);
+  if (!isMatch) return res.json({ success: false, message: 'Incorrect password' });
 
+  res.json({
+    success: true,
+    token: 'mocked-token',
+    role: user.role
+  });
+});
 
 app.post('/api/admin/users', async (req, res) => {
   try {
