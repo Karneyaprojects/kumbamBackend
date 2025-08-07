@@ -683,11 +683,11 @@ app.post('/api/admin/users', (req, res) => {
 // Update user
 app.put('/api/admin/users/:id', (req, res) => {
   const { id } = req.params;
-  const { full_name, email, phone } = req.body;
+  const { full_name, phone ,email } = req.body;
 
   db.query(
     'UPDATE users SET name=?, email=?, phone=? WHERE id=?',
-    [full_name, email, phone, id],
+    [full_name,phone,email,id],
     (err) => {
       if (err) {
         console.error('Update error:', err);
