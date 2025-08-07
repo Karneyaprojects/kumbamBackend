@@ -661,7 +661,7 @@ app.post('/api/admin/login', async (req, res) => {
 // ✅ Inside index.js or server.js
 // Get all users
 app.get('/api/admin/users', (req, res) => {
-  db.query('SELECT (full_name,phone,email) FROM users', (err, results) => {
+  db.query('SELECT * FROM users', (err, results) => {
     if (err) return res.status(500).json({ success: false, message: 'DB error' });
     res.json({ success: true, users: results });
   });
