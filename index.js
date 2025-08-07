@@ -683,16 +683,21 @@ app.post('/api/admin/users', (req, res) => {
 // Update user
 app.put('/api/admin/users/:id', (req, res) => {
   const { id } = req.params;
-  const { name, email, phone } = req.body;
+  const { full_name, email, phone } = req.body;
+
   db.query(
     'UPDATE users SET name=?, email=?, phone=? WHERE id=?',
-    [name, email, phone, id],
+    [full_name, email, phone, id],
     (err) => {
-      if (err) return res.status(500).json({ success: false, message: 'Update failed' });
+      if (err) {
+        console.error('Update error:', err);
+        return res.status(500).json({ success: false, message: 'Update failed' });
+      }
       res.json({ success: true });
     }
   );
 });
+
 
 // Delete user
 app.delete('/api/admin/users/:id', (req, res) => {
