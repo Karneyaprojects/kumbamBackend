@@ -659,17 +659,52 @@ app.post('/api/admin/login', async (req, res) => {
 });
 
 // ✅ Inside index.js or server.js
+// Get all users
 app.get('/api/admin/users', (req, res) => {
-  const query = 'SELECT id,full_name,phone,email FROM users';
-
-  db.query(query, (err, results) => {
-    if (err) {
-      console.error('DB error:', err);
-      return res.status(500).json({ success: false, message: 'DB error' });
-    }
+  db.query('SELECT * FROM users', (err, results) => {
+    if (err) return res.status(500).json({ success: false, message: 'DB error' });
     res.json({ success: true, users: results });
   });
 });
+
+// Add user
+app.post('/api/admin/users', (req, res) => {
+  const { name, email, phone } = req.body;
+  db.query(
+    'INSERT INTO users (name, email, phone) VALUES (?, ?, ?)',
+    [name, email, phone],
+    (err, result) => {
+      if (err) return res.status(500).json({ success: false, message: 'Insert failed' });
+      res.json({ success: true, id: result.insertId });
+    }
+  );
+});
+
+// Update user
+app.put('/api/admin/users/:id', (req, res) => {
+  const { id } = req.params;
+  const { name, email, phone } = req.body;
+  db.query(
+    'UPDATE users SET name=?, email=?, phone=? WHERE id=?',
+    [name, email, phone, id],
+    (err) => {
+      if (err) return res.status(500).json({ success: false, message: 'Update failed' });
+      res.json({ success: true });
+    }
+  );
+});
+
+// Delete user
+app.delete('/api/admin/users/:id', (req, res) => {
+  const { id } = req.params;
+  db.query('DELETE FROM users WHERE id=?', [id], (err) => {
+    if (err) return res.status(500).json({ success: false, message: 'Delete failed' });
+    res.json({ success: true });
+  });
+});
+
+
+
 
 
   // ✅ Start Server
