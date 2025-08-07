@@ -680,9 +680,7 @@ app.post('/api/admin/users', (req, res) => {
   );
 });
 
-
-
-// Add user
+// Update user
 app.put('/api/admin/users/:id', (req, res) => {
   const { id } = req.params;
   const { full_name, email, phone } = req.body;
@@ -692,7 +690,7 @@ app.put('/api/admin/users/:id', (req, res) => {
   }
 
   db.query(
-    'UPDATE users SET full_name=?, email=?, phone=? WHERE id=?',
+    'UPDATE users SET name=?, email=?, phone=? WHERE id=?',
     [full_name, email, phone, id],
     (err) => {
       if (err) {
