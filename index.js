@@ -658,6 +658,19 @@ app.post('/api/admin/login', async (req, res) => {
   }
 });
 
+
+app.post('/api/admin/users', async (req, res) => {
+  try {
+    const [users] = await db.promise().query(
+      'SELECT * FROM users where role="user"'
+    );
+    res.json({ success: true, users });
+  } catch (err) {
+    console.error('Error fetching users:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
   // ✅ Start Server
   app.listen(5000, '0.0.0.0', () => {
     console.log('✅ Server running on port 5000');
