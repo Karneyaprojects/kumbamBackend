@@ -721,6 +721,64 @@ app.delete('/api/admin/users/:id', (req, res) => {
 });
 
 
+app.post('/api/verify-email-otp', async (req, res) => {
+  const { email, otp } = req.body;
+
+  if (!email || !otp) {
+    return res.status(400).json({ success: false, message: 'Email and OTP are required' });
+  }
+
+  try {
+    // 1️⃣ Find the user
+    const [userRows] = await db.execute(
+      'SELECT id FROM users WHERE email = ?',
+      [email]
+    );
+    if (userRows.length === 0) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    const userId = userRows[0].id;
+
+    // 2️⃣ Get latest OTP record
+    const [otpRows] = await db.execute(
+      'SELECT otp, otp_expiry, verified FROM otp_verification WHERE user_id = ? ORDER BY id DESC LIMIT 1',
+      [userId]
+    );
+    if (otpRows.length === 0) {
+      return res.status(404).json({ success: false, message: 'No OTP found for this user' });
+    }
+    const otpData = otpRows[0];
+
+    // 3️⃣ Already verified?
+    if (otpData.verified) {
+      return res.json({ success: true, message: 'OTP already verified' });
+    }
+
+    // 4️⃣ OTP match check
+    if (String(otpData.otp) !== String(otp)) {
+      return res.status(400).json({ success: false, message: 'Invalid OTP' });
+    }
+
+    // 5️⃣ Expiry check
+    if (otpData.otp_expiry && new Date(otpData.otp_expiry) < new Date()) {
+      return res.status(400).json({ success: false, message: 'OTP expired' });
+    }
+
+    // 6️⃣ Mark as verified
+    await db.execute(
+      'UPDATE otp_verification SET verified = 1 WHERE user_id = ?',
+      [userId]
+    );
+
+    return res.json({ success: true, message: 'OTP verified successfully' });
+
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+
 
 
 
